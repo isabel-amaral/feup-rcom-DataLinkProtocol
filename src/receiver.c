@@ -10,7 +10,7 @@
 #include "sup_rx_state_machine.h"
 #include "info_state_machine.h"
 
-int ns;
+int ns_rx;
 
 int rx_start_transmission(int fd) {
     rx_state_machine(fd);
@@ -20,7 +20,7 @@ int rx_start_transmission(int fd) {
     write(fd, ua_frame, SUP_FRAME_SIZE);
     printf("UA supervision frame sent\n");
 
-    ns = 0;
+    ns_rx = 0;
     return 0;
 }
 
@@ -44,18 +44,18 @@ int receive_info_frame(int fd, unsigned char* packet, int* packet_size) {
     unsigned char control_field;
     int data_rcv_size;
 
-    int has_error = info_frame_state_machine(fd, ns, data_rcv, &data_rcv_size);
+    int has_error = info_frame_state_machine(fd, ns_rx, data_rcv, &data_rcv_size);
     if (!has_error) {
-        ns = (ns == 0) ? 1 : 0;
+        ns_rx = (ns_rx == 0) ? 1 : 0;
         memcpy(packet, data_rcv, data_rcv_size);
         *packet_size = data_rcv_size;
     }
     if (!has_error || has_error == 2) {
-        control_field = assemble_rr_frame_ctrl_field(ns);
+        control_field = assemble_rr_frame_ctrl_field(ns_rx);
         printf("RR supervision frame sent\n");
     }
     else if (has_error == 3) {
-        control_field = assemble_rej_frame_ctrl_field(ns);
+        control_field = assemble_rej_frame_ctrl_field(ns_rx);
         printf("REJ supervision frame sent\n");
     }
     if (has_error != 1)

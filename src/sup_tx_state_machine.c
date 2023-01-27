@@ -4,63 +4,63 @@
 #include "sup_tx_state_machine.h"
 #include "link_layer.h"
 
-enum State state;
-unsigned char control_rcv;
+enum State state_tx;
+unsigned char control_rcv_tx;
 
 void tx_start_transition_check(unsigned char byte_rcv) {
     if (byte_rcv == FLAG)
-        state = FLAG_RCV;
+        state_tx = FLAG_RCV;
 }
 
 void tx_flag_rcv_transition_check(unsigned char byte_rcv) {
     if (byte_rcv == ADDRESS)
-        state = A_RCV;
+        state_tx = A_RCV;
     else if (byte_rcv != FLAG)
-        state = START;
+        state_tx = START;
 }
 
 void tx_a_rcv_transition_check(unsigned char byte_rcv) {
     if (byte_rcv == UA_CONTROL || byte_rcv == DISC_CONTROL ||
         byte_rcv == RR_ACK ||  byte_rcv == (unsigned char) (RR_ACK | SET_SUP_FRAME_CONTROL) ||
         byte_rcv == REJ_ACK || byte_rcv == (unsigned char) (REJ_ACK | SET_SUP_FRAME_CONTROL)) {
-        state = C_RCV;
-        control_rcv = byte_rcv;
+        state_tx = C_RCV;
+        control_rcv_tx = byte_rcv;
     }
     else if (byte_rcv == FLAG)
-        state = FLAG_RCV;
+        state_tx = FLAG_RCV;
     else
-        state = START;
+        state_tx = START;
 }
 
 void tx_c_rcv_transition_check(unsigned char byte_rcv) {
-    if (byte_rcv == (ADDRESS ^ control_rcv))
-        state = BCC_OK;
+    if (byte_rcv == (ADDRESS ^ control_rcv_tx))
+        state_tx = BCC_OK;
     else if (byte_rcv == FLAG)
-        state = FLAG_RCV;
+        state_tx = FLAG_RCV;
     else
-        state = START;
+        state_tx = START;
 }
 
 void tx_bcc_ok_transition_check(unsigned char byte_rcv) {
     if (byte_rcv == FLAG)
-        state = STOP;
+        state_tx = STOP;
     else
-        state = START;
+        state_tx = START;
 }
 
 int tx_state_machine(int fd) {
     unsigned char byte_rcv[BYTE_SIZE];
-    state = START;
+    state_tx = START;
     if (!read(fd, byte_rcv, BYTE_SIZE)) 
         return 1;
     if (byte_rcv[0] != FLAG)
         return 1;
 
-    while (state != STOP) {
-        if (state != START)
+    while (state_tx != STOP) {
+        if (state_tx != START)
             read(fd, byte_rcv, BYTE_SIZE);
 
-        switch (state) {
+        switch (state_tx) {
         case START:
             tx_start_transition_check(byte_rcv[0]); break;
         case FLAG_RCV:

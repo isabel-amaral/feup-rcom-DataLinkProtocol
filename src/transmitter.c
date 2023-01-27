@@ -9,8 +9,8 @@
 #include "sup_tx_state_machine.h"
 
 int alarm_enabled, alarm_count;
-extern unsigned char control_rcv;
-int ns, nr;
+extern unsigned char control_rcv_tx;
+int ns_tx, nr;
 
 void alarm_handler(int signal) {
     alarm_enabled = 0;
@@ -32,7 +32,7 @@ int tx_start_transmission(int fd) {
             alarm(3);
             alarm_enabled = 1;
             if (!tx_state_machine(fd)) {
-                ns = 0;
+                ns_tx = 0;
                 printf("UA supervision frame read\n");
                 return 0;
             }   
@@ -58,7 +58,7 @@ int tx_stop_transmission(int fd) {
             alarm_enabled = 1;
             printf("DISC supervision frame sent\n");
         }
-        if (!tx_state_machine(fd) && control_rcv == DISC_CONTROL) {
+        if (!tx_state_machine(fd) && control_rcv_tx == DISC_CONTROL) {
             printf("DISC supervision frame read\n");
 
             write(fd, ua_frame, SUP_FRAME_SIZE);
@@ -71,7 +71,7 @@ int tx_stop_transmission(int fd) {
 }
 
 int send_info_frame(int fd, unsigned char* buffer, int buffer_size) {
-    unsigned char control_field = assemble_info_frame_ctrl_field(ns);
+    unsigned char control_field = assemble_info_frame_ctrl_field(ns_tx);
     int info_frame_size;
     unsigned char* info_frame = assemble_information_frame(control_field, buffer, buffer_size, &info_frame_size);
 
@@ -89,19 +89,19 @@ int send_info_frame(int fd, unsigned char* buffer, int buffer_size) {
         }
 
         if (!tx_state_machine(fd)) { 
-            nr = control_rcv & BIT(7);
-            if ((control_rcv & RR_ACK) == RR_ACK && nr != ns)
+            nr = control_rcv_tx & BIT(7);
+            if ((control_rcv_tx & RR_ACK) == RR_ACK && nr != ns_tx)
                 break;
-            else if ((control_rcv & RR_ACK) == RR_ACK && nr == ns) {
+            else if ((control_rcv_tx & RR_ACK) == RR_ACK && nr == ns_tx) {
                 resend = 1;
             }
-            else if ((control_rcv & REJ_ACK) == REJ_ACK) {
+            else if ((control_rcv_tx & REJ_ACK) == REJ_ACK) {
                 alarm(3);
                 alarm_enabled = 0;
             }
         }
     }
 
-    ns = (ns == 0) ? 1 : 0;
+    ns_tx = (ns_tx == 0) ? 1 : 0;
     return 0;
 }
